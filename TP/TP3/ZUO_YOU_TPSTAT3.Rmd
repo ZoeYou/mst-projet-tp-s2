@@ -1,0 +1,247 @@
+---
+title: "TPSTAT3"
+author: "You ZUO"
+date: "15 mars 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.Ajuster une loi Bernoulli
+
+Soit une loi Bernoulli (rbinom) avec $p =0.7$. Simuler un échantillon i.i.d de taille $N = 10$
+
+```{r echo=FALSE}
+echantillon <- rbinom(10,1,0.7)
+echantillon
+```
+
+###1.a)
+Pour estimer p, on peut utiliser la moyenne empirique:
+
+```{r echo=FALSE}
+mean(echantillon)
+```
+
+###1.b)
+On va générer une fonction de vraisemblance, nommée L_bern, qui donne la vraisemblance d’un échantillon de Bernoulli pour une valeur donnée de p.
+```{r echo=FALSE}
+L_bern <- function(x,p){
+  p**sum(x)*(1-p)**sum(1-x)
+}
+```
+
+###1.c)
+```{r echo=FALSE}
+x <- echantillon
+p <- seq(from=0, to=1, length.out = 100)
+f_vraisemblc <- L_bern(x,p)
+plot(p, f_vraisemblc)
+
+```
+
+Selon la courbe, on a trouvé que la fonction de vraisemblance atteint un maximum lorsque la probabilité est proche de sa valeur réelle.
+
+###1.d)
+
+```{r echo=FALSE}
+optimize(L_bern,interval = c(0,1),maximum = TRUE,x=echantillon)
+```
+
+###1.e)
+On va tester avec des échantillons de taille allant de N = 10 à N = 2000
+
+```{r echo=FALSE}
+p_theori <- 0.7
+len <- seq(from=10,to=2000,by=10)
+
+echantillons <- lapply(len,function(x){rbinom(x,1,p_theori)})
+names(echantillons) <- seq(from=10,to=2000,by=10)
+
+p_obtenue <- sapply(echantillons,function(echan){optimize(L_bern,interval = c(0,1),maximum = TRUE,x=echan)})
+
+p_obtenue<-matrix(unlist(p_obtenue["maximum",]),1,length(len))
+colnames(p_obtenue) <- len
+
+plot(colnames(p_obtenue),p_obtenue,xlab = "taille de l'échantillon", xlim = c(1,2000), ylim=c(0.5,1))
+par(new=TRUE)
+fdemerde<-function(x){
+  x/x*p_theori
+}
+plot(fdemerde, xlim = c(1,2000), col=2, add=T, lwd = 2, xlab='', ylab='', ylim=c(0.5,1))
+```
+
+On a remarqué que quand la taille de l'échantillon devient grand, les resultats de la fonction optimize se rapproche de p, la probabilité théorique. Mais quand N dépasse un certain nombre très grand, les resulats sont faux : les résultats sont tous égals à 1. On peut combattre l’instabilité des calculs en passons au log-vraissemblance.
+
+###1.f)
+
+```{r echo=FALSE}
+x <- read.csv('distribution_inconue_2_100_realisations.csv')
+Log_bern <- function(x,p){
+  sum(x)*log(p)+sum(1-x)*log(1-p)
+}
+optimize(Log_bern,interval = c(0,1),maximum = TRUE,x=x[2])
+```
+
+On considére que c’est une loi Bernoulli, parce que l’enchantillon ne contient que 2 types de valeurs distinctes: 0 ou 1.
+
+##2.Ajuster d'une loi normale d'écart type connu
+
+###2.b)
+
+```{r echo=FALSE}
+echantillonG <- rnorm(30,2,1)
+L_norm <- function(x,mu){
+  prod(dnorm(x,mu,1))
+}
+mu <- seq(from=0, to=4, length.out = 100)
+f_vraisemblcG <- sapply(mu, function(mu){L_norm(echantillonG,mu)})
+plot(mu, f_vraisemblcG)
+
+```
+
+On a remarqué que la fonction de vraisemblance pour 100 lois normales atteint un maximum lorsque la valeur de $\mu$ est proche de sa valeur réelle 2.
+
+###2.c)
+
+```{r echo=FALSE}
+optimise(L_norm,interval = c(0,4),maximum = TRUE,x=echantillonG)
+```
+
+###2.d)
+
+```{r echo=FALSE}
+mu_theori <- 2
+echantillons <- lapply(len,function(x){rnorm(x,mu_theori,1)})
+names(echantillons) <- seq(from=10,to=2000,by=10)
+Log_norm <- function(x,mu){
+  sum(log(dnorm(x,mu,1)))
+}
+mu_obtenue <- sapply(echantillons,function(echan){optimize(Log_norm,interval = c(0,4),maximum = TRUE,x=echan)})
+mu_obtenue<-matrix(unlist(mu_obtenue["maximum",]),1,length(len))
+colnames(mu_obtenue) <- len
+plot(colnames(mu_obtenue),mu_obtenue,xlab = "taille de l'échantillon")
+par(new=TRUE)
+fdemerde<-function(x){
+  x/x*mu_theori
+}
+plot(fdemerde, xlim = c(1,2000), col=2, add=T, lwd = 2)
+```
+
+On a remarqué que quand la taille de l'échantillon devient grand, les resultats de la fonction optimize se rapproche de $\mu=2$, la moyenne théorique.
+
+##3.Ajuster d’une loi à plusieurs paramètres
+Soit $N=50$
+
+```{r echo=FALSE}
+library(stats4)
+library(ggplot2)
+library(magrittr)
+library(ggpubr)
+
+N <- 50
+
+Log_exp <- function(x,lambda,L){
+  length(x)*log(lambda)-lambda*sum(x-L)
+}
+Log_cauchy <- function(x,x0,alpha){
+  sum(log(dcauchy(x,x0,alpha)))
+}
+
+echantillonE <- rexp(n=N, rate = 2) + 4
+echantillonC <- rcauchy(n=N, location = -2, scale = 0.4)
+
+```
+
+On calcule la log-vraisemblance des échantillons qui ont été générés, en faissant varier un paramètre à la fois.  
+
+Afin de voir l'influence du changement de deux paramètres sur la log-vraisemblance, j'ai choisi d'utiliser les coordonnées x et y pour représenter les valeurs de mes deux paramètres. Pour représenter la valeur de la log-vraisemblance, j'ai utilisé un dégradé de couleur. Plus la couleur est claire, plus la valeur de la log-vraisemblance est grande.
+
+```{r echo=FALSE}
+varie_lambda <- seq(from = 0.5, to = 4, length.out = 100)
+varie_L <- seq(from = 2, to = 6, length.out = 100)
+
+LogexpPar_varie1 <- function(lambdas,Ls,echant){
+  gg <- matrix(numeric(0),nrow = 1,ncol = 3)
+  gg <- as.data.frame(gg)
+  colnames(gg) <- c("lambda","L","log_vrasblc")
+  for (lambda in lambdas) {
+    for (L in Ls) {
+      logv_exp <- Log_exp(echant,lambda,L) 
+      gg <- rbind(gg,c(lambda,L,logv_exp))
+    }
+  }
+  gg
+}
+
+gg <- LogexpPar_varie1(varie_lambda,varie_L,echantillonE)
+gg <- gg[-1,]
+
+varie_lambda1 <- seq(from = 1, to = 3.5, length.out = 100)
+varie_L1 <- seq(from = 3.25, to = 4, length.out = 100)
+gg1 <- LogexpPar_varie1(varie_lambda1,varie_L1,echantillonE)
+gg1 <- gg1[-1,]
+
+p1 <- ggplot(gg,aes(lambda,L))+geom_raster(aes(fill = log_vrasblc))+scale_fill_gradientn(colours = topo.colors(5))
+
+p11 <- ggplot(gg1,aes(lambda,L))+geom_raster(aes(fill = log_vrasblc))+scale_fill_gradientn(colours = topo.colors(5))
+
+```
+
+
+```{r echo=FALSE}
+varie_x0 <- seq(from = -4, to = 0, length.out = 100)
+varie_alpha <- seq(from = 0.1, to =2, length.out = 100)
+
+LogexpPar_varie2 <- function(x0s,alphas,echant){
+  gg <- matrix(numeric(0),nrow = 1,ncol = 3)
+  gg <- as.data.frame(gg)
+  colnames(gg) <- c("x0","alpha","log_vrasblc")
+  for (x0 in x0s) {
+    for (alpha in alphas) {
+      gg <- rbind(gg,c(x0,alpha,Log_cauchy(echant,x0,alpha)))
+    }
+  }
+  gg
+}
+
+gg2 <- LogexpPar_varie2(varie_x0,varie_alpha,echantillonC)
+gg2 <- gg2[-1,]
+
+p2 <- ggplot(gg2,aes(x0,alpha))+geom_raster(aes(fill = log_vrasblc))+scale_fill_gradientn(colours = topo.colors(5))
+
+ggarrange(p1,p11,p2,ncol=2,nrow=2,labels = c("exp1","exp2","Cauchy"))
+
+```
+
+D'après les résultats des figures ci-dessus, on peut voir que les résultats de l'estimation de la distribution de Cauchy avec le maximum de vraisemblance sont fondamentalement cohérents avec la théorie, mais que les résultats de la distribution exponentielle sont assez différents des vraies valeurs des paramètres.  
+
+Cependant, après d'avoir recherché sur la log-vraisemblance pour la loi expotentielle:
+$$f(x)=\lambda e^{-\lambda(x-L)}\ (x> L)$$
+on a trouvé que quand on a $L\geq 4$($L$ en théorie), le terme $-\lambda(x-L)$ devient positif et augmente selon les augmentations de $L$ et $\lambda$, et la log-vraisemblance sera beaucoup élevée dû à cela, donc il faut limiter le champ d'action de $L$ aux valeurs positivives inférieures à 4. Puis on peut voir selon le graphe en droite que le résultat devient plus rationnel.
+
+
+###On compare la valeur obtenue de cette façon à la valeur qu'on obtient en appliquant le solveur mle
+```{r echo=FALSE}
+Loi_exp <- function(lambda,L){
+  -Log_exp(echantillonE,lambda,L)
+}
+
+Loi_cauchy <- function(x0,alpha){
+  -sum(stats::dcauchy(echantillonC,x0,alpha,log=TRUE))
+}
+
+mle(minuslogl = Loi_exp,start = list(lambda= 0,L = 0),method= "L-BFGS-B",lower = c(0.01,2),upper=c(4,4))
+
+mle(minuslogl = Loi_cauchy,start = list(x0= -5,alpha = 0),method= "L-BFGS-B",lower = c(-5,0.1),upper=c(5,10))
+
+
+```
+
+
+
+
+
+

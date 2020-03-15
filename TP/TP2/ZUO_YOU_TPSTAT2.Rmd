@@ -1,0 +1,447 @@
+---
+title: "TPSTAT2"
+author: "You ZUO"
+date: "10/3/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.Echantillon, Théorème Central Limite, Estimation Monte Carlo
+
+
+###<-1->1000 échantillons i.i.d gaussien
+```{r moyennes, echo=FALSE}
+getEchantillon <- function(n,mu=1,sigma=2){
+  echantillon <- rnorm(1000*n, mean=mu, sd=sigma)
+  dim(echantillon) = c(n, 1000)
+  echantillon
+}
+
+calMoyenne <- function(echantillon){
+  moyenne <- apply(echantillon, 2, mean)
+}
+
+calVariance <- function(echantillon){
+  variance <- apply(echantillon, 2, var)
+}
+
+trace <- function(n,moyenne,variance){
+  hist(moyenne,main = paste("taille", n), xlab = "moyenne empirique", ylab = "nombre")
+  #hist(variance,main = paste("variances empiriques de taille", n), xlab = "la variance", ylab = "nombre")
+}
+
+histMoyennes <- function(moyennes){
+  hist(moyennes[as.character(5),], freq = FALSE, main = paste("normalisation par", 5), xlab = "moyenne", ylab = "densité correspondant")
+  plot(function(x) dnorm(x,0,1), xlim = c(-3,3), col=2, add =T)
+  hist(moyennes[as.character(30),], freq = FALSE, main = paste("normalisation par", 30), xlab = "moyenne", ylab = "densité correspondant")
+  plot(function(x) dnorm(x,0,1), xlim = c(-3,3), col=2, add =T)
+  hist(moyennes[as.character(100),], freq = FALSE, main = paste("normalisation par", 100), xlab = "moyenne", ylab = "densité correspondant")
+  plot(function(x) dnorm(x,0,1), xlim = c(-3,3), col=2, add =T)
+}
+
+moyennes <- matrix(0,3,1000)
+rownames(moyennes) <- c("5", "30", "100")
+
+par(mfrow=c(2,3))
+
+resultat1 <- function(n,mu=1,sigma=2){
+  echantillon <- getEchantillon(n,mu,sigma)
+  moyenne <- calMoyenne(echantillon)
+  variance <- calVariance(echantillon)
+  trace(n,moyenne,variance) 
+  moyenne
+}
+
+for (n in c(5,30,100)) {
+  moyennes[as.character(n),] <- resultat1(n)
+}
+
+```
+
+La moyenne empirique suit une loi théorique de $N(\mu,\frac{\sigma^{2}}{n})$.
+
+```{r renormalisation,echo=FALSE}
+renormalisation <- function(moyennes,mu,sigma){
+  for (n in c(5,30,100)) {
+    for (i in 1:1000) {
+      moyennes[as.character(n),i] <- (moyennes[as.character(n),i]-mu)/(sigma/sqrt(n))
+    }
+  }
+  moyennes
+}
+
+moyennes <- renormalisation(moyennes,1,2)
+
+par(mfrow=c(2,3))
+
+histMoyennes(moyennes)
+
+```
+
+Selon les graphes au-dessus, on peut voir que plus la taille de l'échantillon est grande, plus l'intervalle des $U_{n,i}$ devient plus petit, et La distribution de ces valeurs se rapproche de plus en plus de 0.
+
+###<-2->1000 échantillons i.i.d Pareto $P(a,\alpha)$
+Soient $m=1,\ s=3$:
+```{r library, include=FALSE}
+library(rmutil)
+```
+
+```{r moyennes2,echo=FALSE}
+getEchantillon2 <- function(n,m,s){
+  echantillon <- rpareto(1000*n,m,s)
+  dim(echantillon) = c(n, 1000)
+  echantillon
+}
+
+par(mfrow=c(2,3))
+
+resultat2 <- function(n,m=1,s=3){
+  echantillon <- getEchantillon2(n,m,s)
+  moyenne <- calMoyenne(echantillon)
+  variance <- calVariance(echantillon)
+  trace(n,moyenne,variance) 
+  moyenne
+}
+
+for (n in c(5,30,100)) {
+  moyennes[as.character(n),] <- resultat2(n)
+}
+
+```
+
+La moyenne empirique suit une loi théorique de $N(\frac{\alpha a}{\alpha -1},(\frac{\alpha a}{\alpha -1})^2\frac{\alpha}{n(\alpha-2)})$.
+
+```{r renormalisation2,echo=FALSE}
+
+moyennes <- renormalisation(moyennes,1,3)
+
+par(mfrow=c(2,3))
+
+histMoyennes(moyennes)
+
+```
+
+Selon les graphes au-dessus, on peut voir que plus la taille de l'échantillon est grande, plus l'intervalle des $U_{n,i}$ devient plus petit, et La distribution de ces valeurs se rapproche de plus en plus de 0.
+
+###<-3->1000 échantillons i.i.d de loi de Poisson
+```{r moyennes3, echo=FALSE}
+getEchantillon3 <- function(n,lambda){
+  echantillon <- rpois(1000*n, lambda)
+  dim(echantillon) = c(n, 1000)
+  echantillon
+}
+
+par(mfrow=c(2,3))
+
+resultat3 <- function(n,lambda=1){
+  echantillon <- getEchantillon3(n,lambda)
+  moyenne <- calMoyenne(echantillon)
+  variance <- calVariance(echantillon)
+  trace(n,moyenne,variance)
+  moyenne
+}
+
+for (n in c(5,30,100)) {
+  moyennes[as.character(n),] <- resultat3(n)
+}
+
+```
+
+La moyenne empirique suit une loi théorique de $N(\lambda,\frac{\lambda}{n})$.
+
+```{r renormalisation3, echo=FALSE}
+
+moyennes <- renormalisation(moyennes,1,1)
+
+par(mfrow=c(2,3))
+
+histMoyennes(moyennes)
+
+```
+
+Selon les graphes au-dessus, on peut voir que plus la taille de l'échantillon est grande, plus l'intervalle des $U_{n,i}$ devient plus petit, et La distribution de ces valeurs se rapproche de plus en plus de 0.
+
+###<-4->La conclusion
+Lorsque on veut estimer un paramètre d’une distribution, on a généralement besoin de construire une statistique $T$, puis on estimera le paramètre en calculant la distribution d'échantillonnage de la statistique, c'est-à-dire $E[T(X_1,...,X_n)]$ et $V[T(X_1,...,X_n)]$. Quant à comment n influence la qualité de cette approximation, on peut déduire selon des expérimentations précédentes que:
+
+Plus la taille de l'échantillon $n$ est grande, plus l'intervalle des resultats de calculs de $T(X_1,...,X_n)$ devient plus petit, et La distribution de ces valeurs se rapproche de plus en plus de $E[T(X_1,...,X_n)]$, et en même temps la vraie valeur du paramètre que l'on cherche.
+
+Ce résultat est également une bonne preuve du théorème de la limite centrale.
+
+
+##2.Moyenne et dispersion
+###<-1->Inégalité de Bienaymé-Tchebychev
+Pour tout réel strictement positif $\alpha$,
+$$P(|X-E[X]|\ge\delta)\le\frac{\sigma^2}{\delta^2}$$
+
+###<-2->Estimer par Monte Carlo les probabilités de déviation d’une variable aléatoire de sa moyenne.
+####2.a)
+$$P(|X-\mu|\ge\delta)=P(1_{\{|X-\mu|\ge\delta\}}=1)$$
+soit $Z = 1_{\{|X-\mu|\ge\delta\}}$, alors la valeur de $Z$ est soit 1 soit 0, ainsi on peut calculer sa valeur d'espérance:
+$$E[Z]=0\times P(Z=0)\ + 1\times P(Z=1)=P(Z=1)$$
+Donc, par les formules au-dessus, on a déduit que:
+$$P(|X-\mu|\ge\delta)=E[1_{\{|X-\mu|\ge\delta\}}]=E[Z]$$
+
+####2.b)
+Soient $\mu=4,\ \sigma=2,\ \delta=1$
+```{r 2b, echo=FALSE}
+
+initX <- function(N,mu,sigma){
+  X <- matrix(NA,3,N)
+  rownames(X)=c("Gaussien","Pareto","Poisson")
+  X["Gaussien",] <- rnorm(N,mu,sigma)
+  X["Pareto",] <- rpareto(N,mu,sigma)
+  X["Poisson",] <- rpois(N,mu)
+  X
+}
+
+initZ <- function(X,mu,delta=1){
+  for (rowX in 1:nrow(X)) {
+    for (colX in 1:ncol(X)) {
+      if (abs(X[rowX,colX]-mu)>=delta){
+        X[rowX,colX] <- 1      
+      }else{
+        X[rowX,colX] <- 0     
+      }
+    }
+  }
+  X
+}
+
+X <- initX(10000,4,2)
+echantillonZ <- initZ(X,4,1) 
+EZ <- rowMeans(echantillonZ)
+EZ
+```
+####2.c)
+On va calculer la fréquence que $P(|X-E[X]|\ge\delta)\le\frac{\sigma^2}{\delta^2}$ pour plusieurs $\delta$ en Faisant varier $\sigma$ de 1.5 à 4 par pas de 0.5 .  
+
+```{r 2c1, echo=FALSE}
+N <- 10000
+mu <- 4
+delta <- 1
+
+borneChev <- function(sigma,delta){
+  (sigma/delta)**2
+}
+
+#function: pour tester si les bornes obtenues par B.C. satisfait l'inégalité
+#param: N la taille d'échantillon, mu espérence, sigma dispersion
+#return: TRUE si les échantillon satisfont l'inégalité FALSE sinon
+testBC <- function(N,mu,sigma,delta){
+  echantillonZ <- initZ(initX(N,mu,sigma),mu,delta)
+  EZ <- rowMeans(echantillonZ)
+  rtn <- (EZ <= borneChev(sigma,delta))
+}
+
+#function: Calcule la fréquence à laquelle les échantillons satisfait l'inégalité 
+#return: un vecteur des fréquence
+pTRUE <- function(N,mu,delta){
+  nbTRUE <- c(0,0,0)
+  ltest <- seq(from = 1.5,to = 4,by = 0.5)  #la gamme de valeurs de sigma
+  for (sigma in ltest) {
+    test <- testBC(N,mu,sigma,delta)
+    for (j in 1:3) { #1,2,3 correspondent respectivement "Gaussien","Pareto","Poisson"
+      if(test[j]){
+        nbTRUE[j] <- nbTRUE[j]+1
+      }
+    }
+  }
+  nbTRUE/length(ltest)
+}
+
+res <- sapply(c(1,2,3), function(delta) pTRUE(N,4,delta))
+rownames(res) <- c("Gaussien","Pareto","Poisson")
+colnames(res) <- c("delta=1","delta=2","delta=3")
+res
+
+```
+
+$\textbf{La conclusion}$: en modifiant les valeurs de $\delta$ et $\sigma$, on a  trouvé que les échantillons obéissant à la distribution gaussienne et à laquelle de Poisson peuvent très bien satisfaire l’inégalité de Bienaymé Chebyshev, mais lorsque la valeur de $\delta$ devient plus grande, l’échantillon de la distribution de Pareto des fois ne peut pas satisfaire cette inégalité.
+
+####2.d)
+Le cas Gaussien $X\sim N(\mu,\sigma^2)$, $P(X\ge t)\le exp(-\frac{(t-\mu)^2}{2\sigma^2})$ et pour tout $t\geq{0}$ donc
+$$P({X-\mu}\ge{\delta})\le{exp(-\frac{\delta^2}{2\sigma^2}})$$ 
+car ici $t=\mu +\delta$
+```{r echo=FALSE}
+N <- 10000
+borneChernoff_gaus <- function(sigma,delta){
+  exp(-(delta**2)/(2*(sigma**2)))
+}
+
+probDev <- function(X,mu,delta){
+  rtn <- 0
+  for(i in 1:length(X)){
+    if((X[i]-mu)>=delta){
+      rtn <- rtn + 1
+    }
+  }
+  rtn/length(X)
+}
+```
+Pour les cas Gaussien avec $\mu=1$  
+
+On va varier d'abord le $\delta$ de 1 à 4 par pas de 0.5 en fixant que $\sigma=2$.
+```{r echo=FALSE}
+mu <- 1
+sigma <- 2
+
+res <- list(NULL,NULL,NULL)
+names(res) <- c("Chernoff","Monte Carlo","satisfait")
+
+for (delta in seq(from = 1, to = 4, by =0.5)) {
+  X <- rnorm(N,mu,sigma)
+  borne <- borneChernoff_gaus(sigma,delta)
+  res$Chernoff <- append(res$Chernoff,borne)
+  mc <- probDev(X,mu,sigma)
+  res$`Monte Carlo` <- append(res$`Monte Carlo`,mc)
+  sivrai <- (mc <= borne)
+  res$satisfait <- append(res$satisfait,sivrai)
+}
+res
+```
+
+
+
+Puis on va varier la $\sigma$ de 1 à 4 par pas de 0.5 en fixant que $\delta=2$
+```{r echo = FALSE}
+mu <- 1
+delta <- 2
+
+res <- list(NULL,NULL,NULL)
+names(res) <- c("Chernoff","Monte Carlo","satisfait")
+
+for (sigma in seq(from = 1, to = 4, by =0.5)) {
+  X <- rnorm(N,mu,sigma)
+  borne <- borneChernoff_gaus(sigma,delta)
+  res$Chernoff <- append(res$Chernoff,borne)
+  mc <- probDev(X,mu,sigma)
+  res$`Monte Carlo` <- append(res$`Monte Carlo`,mc)
+  sivrai <- (mc <= borne)
+  res$satisfait <- append(res$satisfait,sivrai)
+}
+res
+
+```
+
+
+
+Le cas Poisson $X\sim P(\lambda)$, et donc pour tout $t\geq{0}$  $$P(X\ge t)\le exp(-uh(\frac{t}{\mu}))$$
+avec $h(x)=(1+x)log(1+x)-x,x\ge-1$
+```{r echo=FALSE}
+borneChernoff_pois <- function(lamba,delta){
+  exp(-lambda*(1+(delta/lambda)*log(1+(delta/lambda))-(delta/lambda)))
+}
+```
+
+On va varier d'abord le $\delta$ de 1 à 4 par pas de 0.5 en fixant que $\lambda=2$.
+```{r echo=FALSE}
+lambda <- 2
+
+res <- list(NULL,NULL,NULL)
+names(res) <- c("Chernoff","Monte Carlo","satisfait")
+
+for (delta in seq(from = 1, to = 4, by =0.5)) {
+  X <- rpois(N,lambda)
+  borne <- borneChernoff_pois(lambda,delta)
+  res$Chernoff <- append(res$Chernoff,borne)
+  mc <- probDev(X,lambda,sqrt(lambda))
+  res$`Monte Carlo` <- append(res$`Monte Carlo`,mc)
+  sivrai <- (mc <= borne)
+  res$satisfait <- append(res$satisfait,sivrai)
+}
+res
+```
+
+
+Puis on va varier la $\sqrt{\lambda}$ de 0.5 à 2 par pas de 0.5 en fixant que $\delta=2$
+```{r echo=FALSE}
+delta <- 2
+
+res <- list(NULL,NULL,NULL)
+names(res) <- c("Chernoff","Monte Carlo","satisfait")
+
+for (lambda1 in seq(from = 0.5, to = 2, by =0.25)) {
+  lambda <- lambda1**2
+  X <- rpois(N,lambda)
+  borne <- borneChernoff_pois(lambda,delta)
+  res$Chernoff <- append(res$Chernoff,borne)
+  mc <- probDev(X,lambda,sqrt(lambda))
+  res$`Monte Carlo` <- append(res$`Monte Carlo`,mc)
+  sivrai <- (mc <= borne)
+  res$satisfait <- append(res$satisfait,sivrai)
+}
+res
+```
+###<-3->
+####3.a)
+Remarque: $P(\bar{X}_n-\mu\geq\delta)\leq exp(-\frac{n(\mu+\delta)^2}{2\sigma^2})$
+
+On va calculer les bornes de Chernoff dans le cas échantillon pour $\bar{X}_n$ en variant $n = 20, 100, 1000$.
+
+```{r echo=FALSE}
+n <- c(20,100,1000)
+delta <- 0.5
+
+borneChernoff_gaus_n <- function(n,mu=1,sigma=2,delta=0.5){
+  exp(-n*((mu+delta)**2)/(2*(sigma**2)))
+}
+
+borneChernoff_pois_n <- function(n,lambda=2,delta=0.5){
+  exp(-n*((lambda+delta)**2)/(2*lambda))
+}
+
+rtn <- matrix(NA,nrow = 2,ncol = 3)
+rownames(rtn) <- c("Gauss","Poisson")
+colnames(rtn) <- c(20,100,1000)
+
+for (i in n) {
+  rtn["Gauss",as.character(n)] <- borneChernoff_gaus_n(n)
+  rtn["Poisson",as.character(n)] <- borneChernoff_pois_n(n)
+}
+
+rtn
+
+```
+####3.b)
+Les résultats ci-dessus montrent que, à mesure que n grandit, la valeur de borne de Chernoff se rapproche de 0. C'est-à-dire que la probabilité que la différence entre $\bar{X}_n$ et $\mu\ (resp. \lambda)$ soit supérieure à une certaine distance devient de plus en plus petite, presque nulle. Par conséquent, on peut penser que la valeur de $\mu\ (resp.\lambda)$ converge vers la moyenne empirique en fonction de la probabilité. $\bar{X}_n$ est donc un estimateur de $\mu\ (resp. \lambda)$.
+
+###<-4->
+####4.a)
+```{r echo=FALSE}
+moyennesC <- matrix(NA,nrow=1,ncol=4)
+colnames(moyennesC) <- c(20,100,1000,10000)
+
+for (n in c(20,100,1000,10000)) {
+  moyennesC[1,as.character(n)] <- mean(rcauchy(n,0,1))
+}
+
+moyennesC
+
+```
+Selon les résultats on a trouvé que la moyenne empirique ne converge pas par rapport à $n$.
+
+####4.b)
+Selon la formule qui utilise la fonction propre pour trouver l'espérance: $$E(X^n)=i^{-n}\phi_X^{(n)}(0)=i^{-n}[\frac{d^n}{dt^n}\phi_X(t)]_{t=0}$$
+
+Ici, on étudiera uniquement la distribution standard de Cauchy, c’est-à-dire que $\theta=0$ . Alors $\phi_0(t)=exp(-|t|)$ 
+il n'est pas dérivable en $t=0$, indiquant que son espérance n'exisite pas. 
+
+####4.c)
+```{r echo=FALSE}
+cauchys <- matrix(NA,nrow = 1,ncol = 3)
+colnames(cauchys) <- c(20,100,1000)
+rownames(cauchys) <- "médiane"
+for (n in c(20,100,1000)) {
+  echantillonC <- sort(rcauchy(n))
+  cauchys[1,as.character(n)] <- echantillonC[n/2+1]
+}
+cauchys
+```
+
+
+
+

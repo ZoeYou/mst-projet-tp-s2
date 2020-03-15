@@ -1,0 +1,169 @@
+---
+title: "ZUO_YOU_TPSTAT4"
+author: "You ZUO"
+date: "2019/4/19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Test de Student
+
+###<-1->
+
+```{r}
+S_n <- rnorm(20,mean = 1,sd = sqrt(2))
+```
+
+####<-1.a->
+
+$\alpha$ ici est la probabilité de l'erreur de première espèce, qui est la probabilité de rejeter à tort $H_0$ (ou encore de choisir $H_1$ alors que $H_0$ est vraie).
+
+####<-1.b->
+D'après le cours, pour $\sigma$ inconnu on a statistique de test:
+$$T(x_1,...,x_n)=\frac{\sqrt{n}(\bar{X}_n-\mu)}{\sigma}\thicksim t(n-1)$$
+et donc pour la zone de rejet:
+$$W=\{(x_1,...,x_n)\ ;\frac{\sqrt{n}(\bar{X}_n-\mu)}{\sigma}>t_{1-\alpha}\}$$
+
+####<-1.c->
+```{r echo=TRUE}
+decision <- function(S_n,alpha,mu0,mu1){
+  mu_em <- mean(S_n)
+  var_em <- var(S_n)
+  borne <- (var_em*qt(1-alpha,length(S_n)-1))/sqrt(length(S_n))+mu0
+  if(mu_em>borne) mu1 else mu0
+}
+decision(S_n,0.05,1,1.5)
+```
+###<-2->
+####<-2.a->
+```{r}
+S_nN <- sapply(1:100, function(x){rnorm(20, mean = 1, sd = sqrt(2))})
+res <- apply(S_nN, 2, function(x){decision(x,0.05,1,1.5)})
+fre_mu0 <- function(res){
+  count <- 0
+  for (i in res) {
+  if(i == 1.0){
+    count = count + 1
+    }
+  }
+  count/length(res)
+}
+fre_mu0(res)
+
+```
+Le resultat veut dire qu'on a accepté $H_0$ finalement 96 fois pour le test de ces 100 groupes d'échantillons. Et on peut remarquer que la frequence est assez proche que $1-\alpha$. En fait, $\delta(S_n,\alpha,\mu_0,\mu_1)$ suit une loi $B(1-\alpha)$.
+
+####<-2.b->
+```{r}
+alpha <- c(0.2, 0.1, 0.05, 0.01)
+t_1_alpha <- sapply(alpha, function(alpha){qt(1-alpha,length(S_n)-1)})
+rbind(alpha,t_1_alpha)
+```
+On peut voir que le $K_a$(ici $t_{1-\alpha}$) augmente en fonction de $\alpha$ selon sa décroissance, la zone de rejet devient donc plus petite quand $\alpha$ est plus petit. C'est à dire la probabilité de rejetter $H_0$ à tort est plus petit. 
+
+####<-2.c->
+```{r}
+sapply(alpha, function(alpha){fre_mu0(apply(S_nN, 2, function(x){decision(x,alpha,1,1.5)}))})
+```
+
+###<-3->
+```{r}
+S2_nN <- sapply(1:100, function(x){rnorm(20, mean = 1.5, sd = sqrt(2))})
+```
+
+####<-3.a->
+```{r}
+res <- apply(S2_nN, 2, function(x){decision(x,0.05,1,1.5)})
+fre_mu0(res)
+```
+Le resultat veut dire que la frequence d'accepter $H_0$ est 0.7, c'est égale à $P(choisir\ H_0|H_1\ est\ vraie)$.
+
+####<-3.b->
+La puissance d'un test, notée $\beta$, est la probabilité de rejeter $H_0$ lorsque $H_1$ est vraie ($P(choisir\ H_0|H_1\ est\ vraie)$).
+On a statistique de test: $\Lambda_n=\frac{\sqrt{n}(\bar{X}_n-\mu_0)}{S_n}$ - région critique(de rejet): $W=\{\Lambda_n>K_\alpha\}$.
+
+Il faut d'abord déterminer $K_\alpha$:
+$$\mathbb{P}_{H_0}(W)=\mathbb{P}_{H_0}(\Lambda_n>K_\alpha)=1-F_{T_{n-1}}(K_\alpha)=\alpha$$
+on a donc $K_\alpha=F^{-1}_{T_{n-1}}(1-\alpha)$, pour la puissance:
+
+$\beta=\mathbb{P}_{H_1}(W)=\mathbb{P}_{H_1}(\Lambda_n>K_{\alpha})$
+
+$\ \ \ =\mathbb{P}_{H_1}(\frac{\sqrt{n}(\bar{X}_n-\mu_0)}{S_n}>F^{-1}_{T_{n-1}}(1-\alpha))$
+
+$\ \ \ =\mathbb{P}_{H_1}(\frac{\sqrt{n}(\bar{X}_n-\mu_1)}{S_n}>\frac{\sqrt{n}(\mu_0-\mu_1)}{S_n}+F^{-1}_{T_{n-1}}(1-\alpha))$
+
+$\ \ \ =1-F_{T_{n-1}}(\frac{\sqrt{n}(\mu_0-\mu_1)}{S_n}+F^{-1}_{T_{n-1}}(1-\alpha))$
+
+####<-3.c->
+```{r}
+mu_0 <- 1
+mu_1 <- c(1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0)
+alpha <- 0.05
+fre <- vector(length = length(mu_1))
+for (i in 1:length(mu_1)) {
+  res <- sapply(data.frame(S2_nN), function(S){decision(S,alpha,mu_0,mu_1[i])})
+  fre[i] <- fre_mu0(res)
+}
+plot(mu_1,fre,ylab="le pourcentage de bonne décision")
+
+  
+```
+
+###<-4->
+####<-4.a->
+```{r}
+S_n <- rnorm(20, 1 ,sqrt(2))
+t.test(S_n, mu = mu_0)
+```
+
+Ici, la valuer $t$ correspond à la valeur de statistique de test de Student:
+$$t=\frac{\sqrt{n}(\bar{X}_n-\mu_0)}{S_n}$$
+$df$ correspond à le degré de liberté $n-1$.
+
+####<-4.b->
+Dans question 3.a on a obtenué que $K_\alpha=F^{-1}_{T_{n-1}}(1-\alpha)$ donc on a:
+
+$$W=\{t>K_\alpha\}=\{t>F^{-1}_{T_{n-1}}(1-\alpha)\}=\{F_{T_{n-1}}(t)>1-\alpha\}=\{1-F_{T_{n-1}}(t)<\alpha\}$$
+finalement notre zone de rejet est commme $W=\{p<\alpha\}$, c'est à dire on quand $p<\alpha$ on rejette l'hypothèse $H_0$.
+
+####<-4.c->
+```{r}
+alpha <- c(0.2, 0.1, 0.05, 0.01)
+ps <- sapply(alpha, function(alpha){
+  apply(S_nN, 2, function(S){
+  t.test(S, mu = mu_0)$p.value
+  }) 
+})
+vrf <- apply(ps, 1, function(pps){pps<alpha})
+res <- apply(vrf, 1, function(vrfi){
+  ct <- 0
+  for (i in vrfi) {if(i) ct <- ct + 1}
+  ct
+})
+100 - res
+```
+On a trouvé que selon la décroissance de la valeur $\alpha$, on a plus de probabilité d'accepter l'hypothèse $H_0$, c'est à dire moins de probabilité que $p\geq\alpha$.
+
+####<-4.d->
+L’intervalle de confiance est une fonction $\mathcal{C}:\ (x_1,...,x_n)\mapsto\mathcal{C}(x_1,...,x_n)$ où $\mathcal{C}(x_1,...,x_n)$ est un sous-ensemble de $\Theta\subset R^p$ et satisfaisant la propriété: pour tout $\theta\in \Theta$,
+$$inf_\theta P_\theta(\theta\in\mathcal{C}(X_1,...,X_n))\ge1-\alpha$$
+ici $\mathcal{C}(X_1,...,X_n)$ est un ensemble qui est aléatoire (car sa définition depend des observations), et telle que quelque soit $\theta$, il y ait une probabilité au moins supérieur à $1-\alpha$ que le vrai paramètre $\theta$ soit dedans.
+```{r}
+intvs <- apply(S_nN, 2, function(S){
+  t.test(S, mu = mu_0)$conf.int
+})
+count <- 0
+for (i in 1:dim(intvs)[2]) {
+  if(intvs[,i][1]<=1&&1<=intvs[,i][2]){
+    count <- count + 1
+  }
+}
+count 
+```
+Pour les échantillons $S^1_n,...,S^N_n$, il y a totalement presque 100 de cas que 1 est dans l'intervalle de confiance, ce qui est normal. 
+
+
+

@@ -1,0 +1,678 @@
+---
+output: 
+  bookdown::pdf_document2:
+    toc: true
+    citation_package: natbib
+    keep_tex: false
+    fig_caption: true
+latex_engine: pdflatex
+title: "Projet de Mathématiques"
+author: "Thomas SU, Kexin SHAO, You ZUO"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+geometry: margin=1in
+fontfamily: mathpazo
+fontsize: 12pt
+spacing: single
+papersize: letter
+bibliography: D:/Dropbox/bib/Haowang.bib
+biblio-style: apsr
+citecolor: blue
+header-includes: \usepackage{graphicx, longtable, float, subfigure}
+
+---
+\newpage
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Modèle de Cox-Ross-Rubinstein
+### Question 1 
+Pour trouver $q_N$, on a :
+$$T_i^{(N)} \in {\{ 1+h_N,1+b_N\}}$$
+$$q_N=\mathbb{Q}(T_1^{(N)}=1+h_N)$$
+
+alors on a $$1- q_N = 1-\mathbb{Q}(T_1^{(N)}=1+h_N)=\mathbb{Q}(T_1^{(N)}=1+b_N)$$
+donc $$\mathbb{E}_{\mathbb{Q}}[T_1^{(N)}]=(1+h_N) \mathbb{Q}(T_1^{(N)}=1+h_N)+(1+b_N) \mathbb{Q}(T_1^{(N)}=1+b_N)$$
+$$=(1+h_N) q_N+(1+b_N) (1-q_N) \tag{1}$$
+
+en même temp sous la probabilité $\mathbb{Q}$ on a $$E_\mathbb{Q}[T_1^{(N)}]=1+r_N \tag{2}$$
+
+
+enfin on a déterminé de $(1)$ et $(2)$ que $$q_N=\frac{r_N-b_N}{h_N-b_N}$$
+
+### Question 2  
+$$p_{(N)}:= \frac{1}{(1+r_N)^2}\mathbb{E_\mathbb{Q}}[f(S_{tN}^{(N)})]$$
+
+
+Pour calculer l'esperance on va définir une variable T pour signifie la nombre de succes $(T_i=1+h_N)$, cette variable suit une lois de Binomiale $T\sim B(N,q_N)$
+
+De plus, on a $S_{t_N}^{(N)} = S_0^{(N)} \cdot \prod_{i=1}^nTi=S_0^{(N)} \cdot (1+h_N)^T\cdot(1+b_N)^{N-T}$, donc 
+
+$\mathbb{E_\mathbb{Q}}[f(S_{t_N}^{(N)})]$
+
+$= \sum_{k=0}^Nf(S_{t_N}^{(N)})\ \mathbb{P}(T=k)$
+
+$=\sum_{k=0}^Nf(S_0^{(N)} (1+h_N)^k (1+b_N)^{N-k})\  \mathbb{P}(T=k)$
+
+$=\sum_{k=0}^Nf(s(1+h_N)^k(1+b_N)^{N-k})  {{N}\choose{k}}q_N^k(1-q_N)^{N-k}$
+
+donc:
+
+$$p_{(N)}=\frac{1}{(1+r_N)^N}\sum_{k=0}^Nf(s (1+h_N)^k(1+b_N)^{N-k})\ {{N}\choose{k}} {q_N}^k (1-q_N)^{N-k}$$
+
+
+##Premier pricer
+###Question 3
+
+```{r 3.1}
+price1 <- function(N, r_N, h_N, b_N, s, f){
+  q_N<-(r_N-b_N)/(h_N-b_N)
+  liste_k<-seq(1, N)
+  liste_f<-sapply(liste_k, function(k) {f(s*((1+h_N)^k)*((1+b_N)^(N-k)))})
+  liste_p<-sapply(liste_k, function(k) choose(N,k)*(q_N^k)*((1-q_N)^(N-k)))
+  
+  sum(liste_f*liste_p)/(1+r_N)^N
+}
+```
+###Question 4
+En prennant $f(x)=max(x-90,0)$ avec $s=100$, $h_N=0.05$, $b_N=-0.05$, $r_N=0.01$ et $N=30$ la fonction $price1$ nous donne:
+```{r}
+price1(30, 0.01, 0.05, -0.05, 100, function(x){max(0,x-90)})
+```
+
+## Deuxième pricer
+###Question 5
+```{r 3.2}
+price2 <- function(N, r_N, h_N, b_N, s, f) {
+  q_N<-(r_N-b_N)/(h_N-b_N)
+  v_k <- matrix(0, nrow = N+1, ncol = N+1)
+  v_k[1,] <- sapply(0:N, function(k){ f(s * ((1+h_N)^k) * ((1+b_N)^(N-k)) ) })
+  for (i in 2:(N+1)) {
+    for (j in 1:(N-i+2)) {
+      v_k[i,j] <- ((1-q_N)*v_k[i-1,j]+q_N*v_k[i-1,j+1])/(1+r_N)
+    }
+  }
+  v_k
+}
+```
+
+###Question 6
+En prennant $f(x)=max(x-90,0)$ avec $s=100$, $h_N=0.05$, $b_N=-0.05$, $r_N=0.01$ et $N=3$, la fonction $price2$ nous donne:
+```{r}
+price2(3, 0.01, 0.05, -0.05, 100, function(x){max(x-90,0)})[4,1]
+```
+
+### Question 7
+En prennant $f(x)=max(x-100,0)$ avec $s=100$, $h_N=0.05$, $b_N=-0.05$, $r_N=0.01$ et $N$ un nombre aléatoire entre 5 et 15, la fonction $price1$ et $price2$ nous donne:
+```{r}
+N <- sample(5:15,1)
+price1(N,0.01,0.05,-0.05,100,function(x){max(x-90,0)})
+price2(N,0.01,0.05,-0.05,100,function(x){max(x-90,0)})[N+1,1]
+
+```
+Selon les resultats on peut voir qu'ils sont pareils, de fait, on peut conclure que les deux méthodes sont équivalentes. Bien qu'elles ne calculent pas le prix de la même façon, elle permettent d'obtenir le même résultat.
+
+##La couverture
+### Question 8 
+Le système d'équation:
+$$\alpha_{N-1}(S^{(N)}_{t{_{N-1}}})(1+h_N)S^{(N)}_{t{_{N-1}}}+\beta_{N-1}(S^{(N)}_{t{_{N-1}}})S^{0}_{t{_{N-1}}}=f((1+h_N)S^{(N)}_{t{_{N-1}}}) \tag{3}$$
+$$\alpha_{N-1}(S^{(N)}_{t{_{N-1}}})(1+b_N)S^{(N)}_{t{_{N-1}}}+\beta_{N-1}(S^{(N)}_{t{_{N-1}}})S^{0}_{t{_{N-1}}}=f((1+b_N)S^{(N)}_{t{_{N-1}}}) \tag{4}$$
+(3)-(4) on a
+
+$\alpha_{N-1} =\frac {f((1+h_N)S^{(N)}_{t{_{N-1}}})-f((1+b_N)S^{(N)}_{t{_{N-1}}})}{S^{(N)}_{t{_{N-1}}}(h_N-b_N)}$
+
+$\beta_{N-1}=\frac {f((1+b_N)S^{(N)}_{t{_{N-1}}})(1+h_N)-f((1+h_N)S^{(N)}_{t{_{N-1}}})(1+b_N)}{S^{0}_{t{_{N}}}(h_N-b_N)}$
+
+###Question 9 
+
+Le système d'équation: pour $k\in \lbrace1,...,N\rbrace$
+$$\alpha_{k-1}(S^{(N)}_{t{_{k-1}}})(1+h_N)S^{(N)}_{t{_{k-1}}}+\beta_{k-1}(S^{(N)}_{t{_{k-1}}})S^{0}_{t{_{k-1}}}=v_k((1+h_N)S^{(N)}_{t{_{k-1}}}) \tag{5}$$
+$$\alpha_{k-1}(S^{(N)}_{t{_{k-1}}})(1+b_n)S^{(N)}_{t{_{k-1}}}+\beta_{k-1}(S^{(N)}_{t{_{k-1}}})S^{0}_{t{_{k-1}}}=v_k((1+b_N)S^{(N)}_{t{_{k-1}}}) \tag{6}$$
+(5)-(6) on a:
+
+$\alpha_{k-1} =\frac {v_k((1+h_N)S^{(N)}_{t{_{k-1}}})-v_k((1+b_N)S^{(N)}_{t{_{k-1}}})}{S^{(N)}_{t{_{k-1}}}(h_N-b_N)}$
+
+$\beta_{k-1}=\frac {v_k((1+b_N)S^{(N)}_{t{_{k-1}}})(1+h_N)-v_k((1+h_N)S^{(N)}_{t{_{k-1}}})(1+b_N)}{S^{0}_{t{_{k}}}(h_N-b_N)}$
+
+###Question 10 
+
+```{r}
+couverture <- function(N,s,r_N,h_N,b_N,f){
+  m <- price2(N,r_N,h_N,b_N,s,f)
+  res_alpha <- matrix(0,nrow = N, ncol = N)
+  res_beta <- matrix(0,nrow = N, ncol = N)
+  for (i in N:1) {
+    for (j in 1:(N-i+1)) {
+      res_alpha[i,j] <- (m[i,j+1]-m[i,j])/(s*(1+h_N)^(N-i-j+1)*(1+b_N)^(j-1)*(h_N-b_N))
+      res_beta[i,j] <- (m[i,j]*(1+h_N)-m[i,j+1]*(1+b_N))/(s*(1+r_N)^(N-i)*(h_N-b_N))
+    }
+  }
+  list(res_alpha,res_beta)
+}
+
+couverture(2,100,0.03,0.05,-0.05,function(x){max(x-100,0)})
+```
+
+#Modèle de Black-Scholes
+##Le modèle
+Ici on modèle le prix des actifs de manière continu. Soit le prix $S^0$ de l’actif sans risque satisfait l'équation différentielle suivante
+$$dS_t^0=rS^0_tdt$$
+avec $S^0_0=1$. Le prix S de l'actif risqué vérifie l'équation différentielle stochastique suivante
+$$dS_t=S_t(rdt+\sigma dB_t)$$
+avec $S_0^0=1$, $\sigma$ et $r$ deux constantes strictement positives. $B$ est un processus stochastique appelé mouvement brownien.
+
+###Question 11
+On utilise la formule d'Ito pour déterminer la formule de $S_t$ en fonction de $s,r,\sigma,t$ et $B_t$:
+$$dg(S_t)=g'(S_t)dS_t+\frac{|\sigma S_t|^2}{2}g''(S_t)dt$$
+En appliquant la formule d'Ito à $ln(S_t)$ on a:
+$$d(ln(S_t))=ln'(S_t)dS_t+\frac{|\sigma S_t|^2}{2}ln''(S_t)dt$$
+$$d(ln(S_t))=\frac{1}{S_t}dS_t-\frac{|\sigma S_t|^2}{2}\frac{1}{S_t^2}dt$$
+$$d(ln(S_t))=\frac{1}{S_t}(S_t(rdt+\sigma dB_t))-\frac{\sigma ^2}{2}dt$$
+$$d(ln(S_t))=(r-\frac{\sigma ^2}{2})dt+\sigma dB_t$$
+Et intégrant entre 0 et 1 on obtient alors:
+$$ln(S_t)-ln(S_0)=(r-\frac{\sigma^2}{2})t+\sigma (B_t-B_0)$$
+Donc avec les valeurs initiales $S_0=s$ et $B_0=0$: $$S_t=s\ exp((r-\frac{\sigma^2}{2})t+\sigma B_t)$$
+
+##Le pricer par la méthode de Monte-Carlo
+###Question 12
+
+```{r}
+price3 <- function(n,s,r,sigma,T,f){
+  ki <- rnorm(n,0,1)
+  s <- sapply(ki, function(ki){
+    exp(-r*T)*f(s*exp((r-sigma^2/2)*T+sigma*sqrt(T)*ki))
+  })
+  mean(s)
+}
+```
+
+###Question 13
+En prenant comme paramètre $r=0.01$, $\sigma=0.1$, $s=100$, $T=1$, $f(x)=max(100-x,0)$, $n=10^5k$ pour $1\leq k \leq 10$, on obtient le graphique suivant
+```{r, fig.width=5, fig.height=3, fig.align = "center"}
+k <- 1:10
+prix <- sapply(k, function(k){
+  price3(10^5*k,100,0.01,0.1,1,function(x){max(100-x,0)})
+})
+library(ggplot2)
+library(ggthemes)
+gg13 <- data.frame(k,prix)
+ggplot(gg13,aes(k,prix)) + 
+  geom_path() +
+  labs(title = 'price3 en fonction de k') +
+  geom_text(aes(label = round(prix,3)),vjust=-0.5)
+```
+
+###Question 14
+On a $$\hat p_{(n)}:=\frac{1}{n}\sum_{i=1}^ne^{-rT}f(s\ exp((r-\frac{\sigma^2}{2})T+\sigma\sqrt{T}\xi_i))$$
+on peut poser que $$X_i=e^{-rT}f(s\ exp((r-\frac{\sigma^2}{2})T+\sigma\sqrt{T}\xi_i))$$
+alors $$\hat p_{(n)}:=\frac{1}{n}\sum_{i=1}^nX_i$$
+Pour $X\in\{X_1,...,X_n\}$ on peut facilement déduire que $\mathbb{E}[X]<+\infty$ car $\forall v, f(v)<+\infty$ et $e^{-rT}<+\infty$. De plus, $(\xi_i)_{1\leq i\leq n}$ sont une suite de variables aléatoires indépendantes et identiquement distribuées, donc en donnant $r,\sigma,s,T$ et $f(x)$ les $(X_i)_{1\leq i\leq n}$ sont aussi indépendantes et identiquement distribuées.
+Donc on peut appliquer la loi forte des grands nombres pour $(X_i)_{1\leq i\leq n}$:
+$$\bar{X}_n\to_{p.s}\bar{\mu}$$
+d'où $\bar{X}_n=\frac{1}{n}\sum_{i=1}^nX_i$ et $\bar\mu=\mathbb{E}[\bar{X}_n]$
+
+Alors on peut obtenir que
+$$\frac{1}{n}\sum_{i=1}^ne^{-rT}f(s\ exp((r-\frac{\sigma^2}{2})T+\sigma\sqrt{T}\xi_i)) \to_{p.s} \mathbb{E}[e^{-rT}f(s\ exp((r-\frac{\sigma^2}{2})T+\sigma\sqrt{T}\xi_i)] \tag{7}$$
+en plus on a $$p:=\mathbb{E}[e^{-rT}f(S_T)]$$
+Donc pour montrer (7) on doit montrer que $$S_T=s\ exp((r-\frac{\sigma^2}{2})T+\sigma\sqrt{T}\xi_i)$$
+d'après question 11 on a déja $$S_T=s\ exp((r-\frac{\sigma^2}{2})t+\sigma B_t)$$
+avec $B_T$ un mouvement brownien, donc on a besoin de montrer que 
+$$\sqrt{T}\xi_i=B_T$$
+C'est à dire qu'il faut montrer que $\sqrt{T}\xi_i$ est un mouvement brownien.
+
+**On va le faire par trois étapes:**
+
+1.Quand $T=0$ on a bien $$\sqrt{T}\xi_i=0$$
+2.Vu que $\xi_i\sim \mathcal{N}(0,1)$ donc on a $$\sqrt{T}\xi_i\sim \mathcal{N}(0,T)$$
+de manière équivalente, pour la valeur $S$ avec $0\leq S\leq T$, on a donc $$B_S\sim \mathcal{N}(0,S)$$
+Selon les propriétés des variables aléatoires gaussiennes, on peut savoir que $B_T-B_S$ suit une loi normale (car c'est une combinaison des v.a. gaussiennes indépendantes) avec
+
+$$\mathbb{E}[B_T-B_S]=\mathbb{E}[B_T]-\mathbb{E}[B_S]=0$$
+
+$\ \ \mathbb{V}[B_T-B_S]$
+
+$\ =\mathbb{V}[B_T]+\mathbb{V}[B_S]-2cov(B_T,B_S)$
+
+$\ =T+S-2(\mathbb{E}[(B_T-\mathbb{E}[B_T])(B_S-\mathbb{E}[B_S])])$
+
+$\ =T+S-2(\mathbb{E}[B_TB_S])$
+
+$\ =T+S-2(\mathbb{E}[B_S(B_T-B_S)]+\mathbb{E}[B^2_S])$
+
+$\ =T+S-2(\mathbb{E}[B_S]\mathbb{E}[B_T-B_S]+\mathbb{V}[B_S])$
+
+$\ =T+S-2S$
+
+$\ =T-S$
+
+donc on obtient $$B_T-B_S\sim \mathcal{N}(0,T-S)$$
+3.D'après des propriétés de v.a. gaussiennes, pour tous les temps $0\leq S'\leq T'\leq S\leq T$ et pour tous $B_T=\sqrt{T}\xi_i$ $B_S=\sqrt{S}\xi_i$ $B_{T'}=\sqrt{T'}\xi_i$ $B_{S'}=\sqrt{S'}\xi_i$
+on peut savoir que le vecteur $(B_T-B_S,B_{T'}-B_{S'})$ est un vecteur gausienne, parce que selon la demostration 2) on peut voir que $B_T-B_S$ et $B_{T'}-B_{S'}$ sont bien deux v.a gaussiennes, et pour prouver qu'elles sont indépendants, il suffit de montrer que $cov(B_T-B_S,B_{T'}-B_{S'})=0$, donc 
+
+$\ \ cov(B_T-B_S,B_{T'}-B_{S'})$
+
+$\ \ =\mathbb{E}[(B_T-B_S)(B_{T'}-B_{S'})]$
+
+$\ \ =\mathbb{E}[B_TB_{T'}]-\mathbb{E}[B_TB_{S'}]-\mathbb{E}[B_SB_{T'}]+\mathbb{E}[B_SB_{S'}]$
+
+$\ \ =T'-S'-T'+S'$
+
+$\ \ =0$
+
+On a bien montré que $B_T-B_S$ et $B_{T'}-B_{S'}$ sont indépendants, donc de 1)2)3) on a 
+$$\sqrt{T}\xi_i=B_T$$
+c'est à dire que $\sqrt{T}\xi_i$ est un mouvement brownien. Par conséquence, on a bien que la suite $(\hat{p}_{(n)})_{n\in\mathbb{N}}$ converge presque sûrement vers p.
+
+##Le pricer par la formule fermée
+###Question 15
+
+```{r}
+F <- function(q){  
+  pnorm(q, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)
+}
+put <- function(s,r,sigma,T,K){
+  d <- (1/(sigma*sqrt(T)))*(log(s/K)+(r+sigma^2/2)*T)
+  -s*F(-d)+K*exp(-r*T)*F(-d+sigma*sqrt(T)) 
+}
+```
+
+###Question 16
+En appliquant la fonction $put$ à: $r=0.01$, $\sigma=0.1$, $s=100$, $T=1$, $K=100$, on obtient:
+```{r}
+put(100,0.04,0.1,1,100)
+```
+
+###Question 17
+On trace le prix donné par la fonction price3 avec $r=0.01$, $\sigma=0.1$, $s=100$, $T=1$, $f(x)=max(100-x,0)$, $n=10^5k$ pour $1\leq k \leq 10$, et aussi le prix donée par la fonction put sur le même graphique:
+```{r fig.width=5, fig.height=3, fig.align = "center"}
+k <- 1:10
+prix <- sapply(k, function(k){
+  price3(10^5*k,100,0.01,0.1,1,function(x){max(100-x,0)})
+})
+gg17 <- data.frame(k,prix)
+ggplot(gg17,aes(k,prix)) + 
+  geom_path() +
+  labs(title = 'price3 en fonction de k') +
+  geom_text(aes(label = round(prix,3)),vjust=-0.5) +
+  geom_line(aes(y=put(100,0.01,0.1,1,100)),color = 'red')
+```
+
+On a remarqué que k devient grand, la valeur retournée par price3 semble être assez proche du prix donné par put. On peut conjecturer que price3 converge vers la valeur donné par put, lorsque k tend vers l’infini.
+
+###Question 18
+On trace ensuite le graphique en 3 dimensions le prix d'option en utilisant la fonction put lorsque $r=0.01$, $\sigma=0.1$, $K=100$, $s=20k$ avec $1\leq k \leq 10$, et $T\in \{\frac{1}{12},\frac{1}{6},\frac{1}{4},\frac{1}{3},\frac{1}{2},1\}$
+```{r, fig.align = "center"}
+k <- seq(from=1,to=10,by=0.5)
+s <- 20*k
+T <- c(1/12,1/6,1/4,1/3,1/2,1)
+p <- function(s,T){
+  put(s,0.01,0.1,T,100)
+}
+z <- outer(s,T,p)
+z[is.na(z)] <- 1
+op <- par(bg = "white")
+persp(s, T, z, theta = 30, phi = 30, expand = 0.5, col = "lightblue",
+      ltheta = 120, shade = 0.75, ticktype = "detailed",
+      xlab = "s", ylab = "T", zlab = "prix"
+)
+```
+
+On remarque que plus T augmente à s fixé, plus le prix augmente. De plus, plus s augmente à T fixé, plus le prix diminue jusqu'à un prix proche de 0 et continue à diminuer.
+
+#Convergence des prix
+###Question 19
+On trace le prix en utilisant la fonction price2 d'une option qui paye $max(100-S_T,0)$, $s=100$, $\sigma=0.2$, $r=0.04$, $T=1$ avec $N=10k$ pour $1\leq k \leq 100$, on y ajoute aussi le droite du prix donné par la fonction put: 
+
+```{r}
+k <- 1:100
+N <- 10*k
+T <- 1
+r <- 0.04 
+sigma <- 0.2
+s <- 100
+B_T <- rnorm(1,0,sqrt(T))
+S_T <- s*exp((r-(sigma^2/2))*T+sigma*B_T)
+f <- function(x){max(100-S_T,0)}
+  
+futile <- function(n, s, r, T, sigma){
+  r_N <- (r*T)/n
+  h_N <- r_N + sigma*sqrt(T)/sqrt(n)
+  b_N <- r_N - sigma*sqrt(T)/sqrt(n)
+  price2(n, r_N, h_N, b_N, s,f)[n+1,1]
+}
+
+prix <- sapply(N, function(n){futile(n, s, r, T, sigma)})
+plot(k,prix,type="l")
+lines(c(1,100),c(prix[100],prix[100]),col=2)
+```
+
+#EDP de Black-Scholes
+Dans cette partie, on considèrera le problème suivant:
+$$\begin{cases}
+\frac{\partial P}{\partial t}+rS\frac{\partial P}{\partial S}+\frac{1}{2}\sigma^2S^2\frac{\partial^2 P}{\partial S^2}=rP,\ (t,S_t)\in[0,T]\times[0,L],\ T>0\\
+P(T,s)=max(K-s,0)\ ,\forall s\in[0,L]\\
+P(t,0)=Ke^{r(t-T)}\ ,\forall t\in[0,T]\\
+P(t,L)=0\ ,\forall t\in[0,T]\\
+\end{cases}
+$$
+
+
+En plus on pose que $\Delta T=\frac{T}{N}$ et $\Delta s=\frac{L}{M+1}$ puis
+$$t_n=n\Delta T\ \ \forall n\in\{0,...,N\}\tag{8}$$
+$$s_i=i\Delta s\ \ \forall i\in\{0,...,M+1\}\tag{9}$$
+
+##Différences finies explicites
+Pour tout $(n,i)\in \{0,...,N-1\}\times \{1,...,M\}$, on approche les dérivées partielles intervenant dans l'EDP dans schéma explicite avec $P(t_n,s_i)$ remplacé par $P_{n,i}$
+$$\frac{\partial P_{n,i}}{\partial t}\approx \frac{1}{\Delta T}(P_{n,i}-P_{n-1,i})\tag{10}$$
+$$\frac{\partial P_{n,i}}{\partial S}\approx \frac{1}{\Delta s}(P_{n,i}-P_{n,i-1})\tag{11}$$
+$$\frac{\partial^2 P_{n,i}}{\partial S^2}\approx \frac{1}{\Delta s^2}(P_{n,i+1}-2P_{n,i}+P_{n,i-1})\tag{12}$$
+donc d'après (8)(9)(10)(11)(12), pour $P_{n,i}$ on obtient la formule
+$$P_{n-1,i}=((\frac{\sigma^2i^2}{2}-ri)\Delta T)P_{n,i-1}+(1+(ri-\sigma^2i^2-r)\Delta T)P_{n,i}+\frac{\sigma^2i^2\Delta T}{2}P_{n,i+1}$$
+on pose que $P_n=(P_{n,1},...,P_{n,M})^t\in \mathbb{R}^M$ donc on peut obtenir 
+$$P_{n-1}=AP_n\ \forall n\in[1,N]$$
+avec $$A=\begin{bmatrix}
+{b_{1}}&{c_{1}}&{0}&{\cdots}&{\cdots}&{0}\\
+{a_{2}}&{b_{2}}&{c_{2}}&{0}&{\cdots}&{0}\\
+{0}&{a_{3}}&{b_{3}}&{c_{3}}&{\cdots}&{0}\\
+{\vdots}&{0}&{\ddots}&{\ddots}&{\ddots}&{0}\\
+{\vdots}&{\vdots}&{\vdots}&{a_{M-1}}&{b_{M-1}}&{c_{M-1}}\\
+{0}&{0}&{0}&{\cdots}&{a_{M}}&{b_{M}}\\
+\end{bmatrix}$$
+d'où
+$$a_i=(\frac{\sigma^2i^2}{2}-ri)\Delta T$$
+$$b_i=1+(ri-\sigma^2i^2-r)\Delta T$$
+$$c_i=\frac{\sigma^2i^2\Delta T}{2}$$
+En plus pour $i=1$ et $i=M$ on a
+$$P_{n-1,1}=(\frac{\sigma^2}{2}-r)\Delta TP_{n,0}+(1+(r-\sigma^2-r)\Delta T)P_{n,1}+\frac{\sigma^2\Delta T}{2}P_{n,2}$$
+$$P_{n-1,M}=(\frac{\sigma^2M^2}{2}-rM)\Delta TP_{n,M-1}+(1+(rM-\sigma^2M^2-r)\Delta T)P_{n,M}+\frac{\sigma^2\Delta TM^2}{2}P_{n,L}$$
+
+Sachant qu'on a deux conditions de bords
+$$P(t,0)=Ke^{r(t-T)}\ \forall t\in [0,T]$$
+$$P(t,L)=0\ \forall t\in[0,T]$$
+donc on a
+$$P_{C_n}=\begin{bmatrix}{(\frac{\sigma^2}{2}-r)\Delta TKe^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}$$
+et la condition initiale
+$$P_N=max(K-s,0)\ \forall s\in[0,L]$$
+donc finalement on a les formules de recurrences
+$$\begin{cases}
+P_{n-1}=AP_n+P_{C_n}\ \forall n\in[0,...,N]\\
+P_{C_n}=\begin{bmatrix}{(\frac{\sigma^2}{2}-r)\Delta TKe^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}\forall n\in[0,...,N]\\\
+P_N=max(K-s,0)\ \forall s\in[0,L]\\
+\end{cases}
+$$
+
+
+##Différences finies implicites
+Pour tout $(n,i)\in \{0,...,N-1\}\times \{1,...,M\}$, on approche les dérivées partielles intervenant dans l'EDP dans schéma implicite avec $P(t_n,s_i)$ remplacé par $P_{n,i}$
+$$\frac{\partial P_{n,i}}{\partial t}\approx \frac{1}{\Delta T}(P_{n+1,i}-P_{n,i})\tag{13}$$
+$$\frac{\partial P_{n,i}}{\partial S}\approx \frac{1}{\Delta s}(P_{n,i}-P_{n,i-1})\tag{14}$$
+$$\frac{\partial^2 P_{n,i}}{\partial S^2}\approx \frac{1}{\Delta s^2}(P_{n,i+1}-2P_{n,i}+P_{n,i-1})\tag{15}$$
+donc d'après (8)(9)(13)(14)(15), pour $P_{n,i}$ on obtient la formule
+$$(-\Delta T(\frac{\sigma^2i^2}{2}-ri))P_{n,i-1}+(1-(ri-\sigma^2i^2-r)\Delta T)P_{n,i}-\frac{\sigma^2i^2\Delta T}{2}P_{n,i+1}=P_{n+1,i}$$
+on pose que $P_n=(P_{n,0},...,P_{n,M+1})^t$ donc on peut obtenir 
+$$AP_{n}+P_{C_n}=P_{n+1}$$
+avec $$A=\begin{bmatrix}
+{b_{1}}&{c_{1}}&{0}&{\cdots}&{\cdots}&{0}\\
+{a_{2}}&{b_{2}}&{c_{2}}&{0}&{\cdots}&{0}\\
+{0}&{a_{3}}&{b_{3}}&{c_{3}}&{\cdots}&{0}\\
+{\vdots}&{0}&{\ddots}&{\ddots}&{\ddots}&{0}\\
+{\vdots}&{\vdots}&{\vdots}&{a_{M-1}}&{b_{M-1}}&{c_{M-1}}\\
+{0}&{0}&{0}&{\cdots}&{a_{M}}&{b_{M}}\\
+\end{bmatrix}$$
+d'où
+$$a_i=-\Delta T(\frac{\sigma^2i^2}{2}-ri)$$
+$$b_i=1-(ri-\sigma^2i^2-r)\Delta T$$
+$$c_i=-\frac{\sigma^2i^2\Delta T}{2}$$
+En plus pour $i=1$ et $i=M$ on a
+$$P_{n+1,1}=(r-\frac{\sigma^2}{2})\Delta TP_{n,0}+(1+\sigma^2\Delta T)P_{n,1}-\frac{\sigma^2\Delta T}{2}P_{n,2}$$
+$$P_{n+1,M}=(rM-\frac{\sigma^2M^2}{2})\Delta TP_{n,M-1}+(1-(rM-\sigma^2M^2-r)\Delta T)P_{n,M}-\frac{\sigma^2M^2\Delta T}{2}P_{n,L}$$
+Sachant qu'on a deux conditions de bords
+$$P(t,0)=Ke^{r(t-T)}\ \forall t\in [0,T]$$
+$$P(t,L)=0\ \forall t\in[0,T]$$
+donc on a
+$$P_{C_n}=\begin{bmatrix}{(r-\frac{\sigma^2}{2})\Delta TKe^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}$$
+et la condition initiale
+$$P_N=max(K-s,0)\ \forall s\in[0,L]$$
+donc finalement on a les formules de recurrences
+$$\begin{cases}
+P_{n}=A^{-1}(P_{n+1}-P_{C_n})\ \forall n\in[0,...,N]\\
+P_{C_n}=\begin{bmatrix}{(\frac{\sigma^2}{2}-r)\Delta TKe^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}\forall n\in[0,...,N]\\\
+P_N=max(K-s,0)\ \forall s\in[0,L]\\
+\end{cases}
+$$
+
+
+##Méthode de Crank-Nicholson
+Pour tout $(n,i)\in \{0,...,N-1\}\times \{1,...,M\}$, on approche les dérivées partielles intervenant dans l'EDP dans schéma implicite avec $P(t_n,s_i)$ remplacé par $P_{n,i}$
+$$\frac{\partial P_{n,i}}{\partial t}\approx \frac{1}{\Delta T}(P_{n+1,i}-P_{n,i})\tag{16}$$
+$$\frac{\partial P_{n,i}}{\partial S}\approx \frac{1}{2}(\frac{P_{n+1,i+1}-P_{n+1,i-1}}{2\Delta s}+\frac{P_{n,i+1}-P_{n,i-1}}{2\Delta s})\tag{17}$$
+$$\frac{\partial^2 P_{n,i}}{\partial S^2}\approx \frac{1}{2(\Delta s)^2}((P_{n+1,i+1}-2P_{n+1,i}+P_{n+1,i-1})+(P_{n,i+1}-2P_{n,i}+P_{n,i-1}))\tag{18}$$
+donc d'après (8)(9)(16)(17)(18), pour $P_{n,i}$ on obtient la formule
+$$(\frac{\sigma^2i^2}{4}-\frac{ri}{4})P_{n,i-1}+(-\frac{1}{\Delta T}-\frac{\sigma^2i^2}{2}-r)P_{n,i}+(\frac{\sigma^2i^2}{4}+\frac{ri}{4})P_{n,i+1}=$$
+$$(\frac{ri}{4}-\frac{\sigma^2i^2}{4})P_{n+1,i-1}+(\frac{\sigma^2i^2}{2}-\frac{1}{\Delta T})P_{n+1,i}+(-\frac{\sigma^2i^2}{4}-\frac{ri}{4})P_{n+1,i+1}$$
+on pose que $P_n=(P_{n,0},...,P_{n,M+1})^t$ donc on peut obtenir 
+$$AP_{n}=BP_{n+1}$$
+avec $$A=\begin{bmatrix}
+{b_{1}}&{c_{1}}&{0}&{\cdots}&{\cdots}&{0}\\
+{a_{2}}&{b_{2}}&{c_{2}}&{0}&{\cdots}&{0}\\
+{0}&{a_{3}}&{b_{3}}&{c_{3}}&{\cdots}&{0}\\
+{\vdots}&{0}&{\ddots}&{\ddots}&{\ddots}&{0}\\
+{\vdots}&{\vdots}&{\vdots}&{a_{M-1}}&{b_{M-1}}&{c_{M-1}}\\
+{0}&{0}&{0}&{\cdots}&{a_{M}}&{b_{M}}\\
+\end{bmatrix}\ et\ B=\begin{bmatrix}
+{e_{1}}&{f_{1}}&{0}&{\cdots}&{\cdots}&{0}\\
+{d_{2}}&{e_{2}}&{f_{2}}&{0}&{\cdots}&{0}\\
+{0}&{d_{3}}&{e_{3}}&{f_{3}}&{\cdots}&{0}\\
+{\vdots}&{0}&{\ddots}&{\ddots}&{\ddots}&{0}\\
+{\vdots}&{\vdots}&{\vdots}&{d_{M-1}}&{e_{M-1}}&{f_{M-1}}\\
+{0}&{0}&{0}&{\cdots}&{d_{M}}&{e_{M}}\\
+\end{bmatrix}$$
+d'où
+$$\begin{cases}
+a_i=\frac{\sigma^2i^2}{4}-\frac{ri}{4}\\
+b_i=-\frac{1}{\Delta T}-\frac{\sigma^2i^2}{2}-r\\
+c_i=\frac{\sigma^2i^2}{4}+\frac{ri}{4}\\
+d_i=\frac{ri}{4}-\frac{\sigma^2i^2}{4}\\
+e_i=\frac{\sigma^2i^2}{2}-\frac{1}{\Delta T}\\
+f_i=-\frac{\sigma^2i^2}{4}-\frac{ri}{4}\end{cases}\\$$
+
+En plus pour $i=1$ et $i=M$ on a
+$$(\frac{\sigma^2}{4}-\frac{r}{4})P_{n,0}+(-\frac{1}{\Delta T}-\frac{\sigma^2}{2}-r)P_{n,1}+(\frac{\sigma^2}{4}+\frac{r}{4})P_{n,2}=$$
+$$(\frac{r}{4}-\frac{\sigma^2}{4})P_{n+1,0}+(\frac{\sigma^2}{2}-\frac{1}{\Delta T})P_{n+1,1}+(-\frac{\sigma^2}{4}-\frac{r}{4})P_{n+1,2}$$
+$$(\frac{\sigma^2M^2}{4}-\frac{rM}{4})P_{n,M-1}+(-\frac{1}{\Delta T}-\frac{\sigma^2M^2}{2}-r)P_{n,M}+(\frac{\sigma^2M^2}{4}+\frac{rM}{4})P_{n,L}=$$
+$$(\frac{rM}{4}-\frac{\sigma^2M^2}{4})P_{n+1,M-1}+(\frac{\sigma^2M^2}{2}-\frac{1}{\Delta T})P_{n+1,M}+(-\frac{\sigma^2M^2}{4}-\frac{rM}{4})P_{n+1,L}$$
+Sachant qu'on a deux conditions de bords
+$$P(t,0)=Ke^{r(t-T)}\ \forall t\in [0,T]$$
+$$P(t,L)=0\ \forall t\in[0,T]$$
+donc on a
+$$P_{C_{n1}}=\begin{bmatrix}{(\frac{r}{4}-\frac{\sigma^2}{4})Ke^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}\ \ \ \ \ \ et\ \ \ \ P_{C_{n2}}=\begin{bmatrix}{(\frac{\sigma^2}{4}-\frac{r}{4})Ke^{r(t_{n+1}-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}$$
+et la condition initiale
+$$P_N=max(K-s,0)\ \forall s\in[0,L]$$
+donc finalement on a les formules de recurrences
+$$\begin{cases}
+P_{n}=A^{-1}(BP_{n+1}+P_{C_{n2}}-P_{C_{n1}})\ \forall n\in[0,...,N]\\
+P_{C_{n1}}=\begin{bmatrix}{(\frac{r}{4}-\frac{\sigma^2}{4})Ke^{r(t_n-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}\ P_{C_{n2}}=\begin{bmatrix}{(\frac{\sigma^2}{4}-\frac{r}{4})Ke^{r(t_{n+1}-T)}}\\{0}\\{\vdots}\\{0}\\\end{bmatrix}\  \forall n\in[0,...,N]\\
+P_N=max(K-s,0)\ \forall s\in[0,L]\\
+\end{cases}
+$$
+
+##Les solutions et les erreurs
+EN considérant la condition CFL, il faut qu'on mette la valeur de $N$ beaucoup plus grande que celle de $M$, donc on prend $N=10000$ et on obtient des résolutions numériques
+
+```{r}
+library(lattice)
+library(plyr)
+library(Rmisc)
+library(ggplot2)
+K <- 100
+r <- 0.04
+sigma <- 0.1
+T <- 1
+L <- 4*K
+M <- 1000
+N <- 10000
+dT <- T/N
+dS <- L/(M+1)
+```
+
+
+```{r 4.1}
+a <- sapply(1:M, function(i){((sigma^2*i^2)/2-r*i)*dT})
+b <- sapply(1:M, function(i){1+(r*i-sigma^2*i^2-r)*dT})
+c <- sapply(1:M, function(i){sigma^2*i^2*dT/2})
+
+P <- matrix(0, nrow = N+1, ncol = M)
+for (i in 1:M) {
+  P[N+1,i] <- max(K-(i-1)*dS,0)
+}
+A <- matrix(0, nrow = M, ncol = M)
+for (i in 1:M) {
+  A[i,i] <- b[i]
+  for (j in 1:M) {
+    if(j==(i+1)){
+      A[i,j] <- c[i]
+    }else if(j==(i-1)){
+      A[i,j] <- a[i]
+    }
+  }
+}
+P_Cn <- sapply(0:N, function(n){
+  res <- matrix(0, nrow = 1, ncol = M)
+  res[1] <- ((sigma^2)/2-r)*dT*K*exp(r*(n*dT-T))
+  res
+})
+for (n in (N+1):2) {
+  P[n-1,] <- A%*%(P[n,]+P_Cn[,n])
+}
+
+P1 <- data.frame(0:(dim(P)[2]-1),P[1,])
+colnames(P1) <- c("i","P0")
+
+p1 <- ggplot(P1,aes(i,P0)) +
+  geom_line(size = 0.8) +
+  labs(title = "Différences finies explicites")
+```
+
+```{r 4.2}
+a <- sapply(1:M, function(i){((sigma^2*i^2)/2-r*i)*(-dT)})
+b <- sapply(1:M, function(i){1-(r*i-sigma^2*i^2-r)*dT})
+c <- sapply(1:M, function(i){-sigma^2*i^2*dT/2})
+
+P <- matrix(0, nrow = N+1, ncol = M)
+for (i in 1:M) {
+  P[N+1,i] <- max(K-(i-1)*dS,0)
+}
+A <- matrix(0, nrow = M, ncol = M)
+for (i in 1:M) {
+  A[i,i] <- b[i]
+  for (j in 1:M) {
+    if(j==(i+1)){
+      A[i,j] <- c[i]
+    }else if(j==(i-1)){
+      A[i,j] <- a[i]
+    }
+  }
+} 
+P_Cn <- sapply(0:N, function(n){
+  res <- matrix(0, nrow = 1, ncol = M)
+  res[1] <- ((sigma^2)/2-r)*dT*K*exp(r*(n*dT-T))
+  res
+})
+A_1 <- solve(A)
+for (n in (N+1):2) {
+  P[n-1,] <- A_1%*%(P[n,]-P_Cn[,n-1])
+}
+P2 <- data.frame(0:(dim(P)[2]-1),P[1,])
+colnames(P2) <- c("i","P0")
+
+p2 <- ggplot(P2,aes(i,P0)) +
+  geom_line(size = 0.8) +
+  labs(title = "Différences finies implicites")
+```
+
+```{r 4.3}
+a <- sapply(1:M, function(i){sigma^2*i^2/4-r*i/4})
+b <- sapply(1:M, function(i){-1/dT-sigma^2*i^2/2-r})
+c <- sapply(1:M, function(i){sigma^2*i^2/4+r*i/4})
+d <- sapply(1:M, function(i){r*i/4-sigma^2*i^2/4})
+e <- sapply(1:M, function(i){sigma^2*i^2/2-1/dT})
+f <- sapply(1:M, function(i){-sigma^2*i^2/4-r*i/4})
+
+P <- matrix(0, nrow = N+1, ncol = M)
+for (i in 1:M) {
+  P[N+1,i] <- max(K-(i-1)*dS,0)
+}
+A <- matrix(0, nrow = M, ncol = M)
+for (i in 1:M) {
+  A[i,i] <- b[i]
+  for (j in 1:M) {
+    if(j==(i+1)){
+      A[i,j] <- c[i]
+    }else if(j==(i-1)){
+      A[i,j] <- a[i]
+    }
+  }
+}
+B <- matrix(0, nrow = M, ncol = M)
+for (i in 1:M) {
+  B[i,i] <- e[i]
+  for (j in 1:M) {
+    if(j==(i+1)){
+      B[i,j] <- f[i]
+    }else if(j==(i-1)){
+      B[i,j] <- d[i]
+    }
+  }
+}
+P_Cn1 <- sapply(0:N, function(n){
+  res <- matrix(0, nrow = 1, ncol = M)
+  res[1] <- (r/4-sigma^2/4)*K*exp(r*(n*dT-T))
+  res
+})
+P_Cn2 <- sapply(0:N, function(n){
+  res <- matrix(0, nrow = 1, ncol = M)
+  res[1] <- (sigma^2/4-r/4)*K*exp(r*((n+1)*dT-T))
+  res
+})
+A_1 <- solve(A)
+for (n in (N+1):2) {
+  P[n-1,] <- A_1%*%(B%*%P[n,]+P_Cn2[,n-1]-P_Cn1[,n-1])
+}
+
+P3 <- data.frame(0:(dim(P)[2]-1),P[1,])
+colnames(P3) <- c("i","P0")
+
+p3 <- ggplot(P3,aes(i,P0)) +
+  geom_line(size = 0.8) +
+  labs(title = "Méthode de Crank-Nicholson")
+multiplot(p1, p3, p2, cols=2)
+```
+
+La formule pour calculer les erreurs relatives 
+$$\delta_{\alpha_r}=\frac{valeur\ calcule-valeur\ theorique}{|valeur\ theorique|}$$
+
+```{r fig.width=6, fig.height=3, fig.align = "center"}
+ss <- seq(from = 0, to = L, length.out = M)
+puts <- sapply(ss, function(s){put(s,r,sigma,T,K)})
+is <- 0:999
+P4 <- data.frame(is, puts)
+err1 <- (P1[,2] - puts)/abs(puts)
+err2 <- (P2[,2] - puts)/abs(puts)
+err3 <- (P3[,2] - puts)/abs(puts)
+errs <- data.frame(is,err1,err2,err3)
+ggplot(errs, aes(x=is)) + 
+            geom_point(aes(y=err1, color="explicites"), size = 0.5) +
+            geom_point(aes(y=err2, color="implicites"), size = 0.5) +
+            geom_point(aes(y=err3, color="MCN"), size = 0.5) +
+            xlab("i") + ylab("erreurs relatives") 
+```
+
+
+
+
+
+
+
+
+
+
